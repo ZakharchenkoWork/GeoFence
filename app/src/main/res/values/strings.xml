@@ -6,4 +6,5 @@
     <string name="radius">Radius</string>
     <string name="start">start</string>
     <string name="wifi_name">WiFi name</string>
+    <string name="no_internet_message">Sorry wifi is not available</string>
 </resources>
