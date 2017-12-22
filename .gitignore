@@ -1,0 +1,9 @@
+captures
+projectFilesBackup
+*.iml
+.gradle
+.idea
+gradle
+build
+libs
+*.log
