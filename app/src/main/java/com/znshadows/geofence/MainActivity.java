@@ -34,7 +34,7 @@ import com.google.android.gms.location.LocationSettingsResult;
 import com.google.android.gms.location.LocationSettingsStatusCodes;
 
 public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, com.google.android.gms.location.LocationListener {
-    private static final int REQUEST_CHECK_SETTINGS = 123;
+
     private static final int GPS_REQUEST = 123;
     private boolean isResolutionStarted = false;
     private EditText latitude;
@@ -47,6 +47,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     private LOADING_STATE loadingState = LOADING_STATE.PERMISSION_CHECK;
     private GoogleApiClient googleApiClient;
     private Location lastLocation = null;
+    private Location fenceCentreLocation = null;
+    private int radiusDistance;
     private ACTION onLocationRecievedAction = ACTION.FENCE;
     enum ACTION {
         LATITUE,
@@ -65,7 +67,11 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         start = (Button) findViewById(R.id.start);
-        start.setOnClickListener((v) -> start());
+        start.setOnClickListener((v) -> {
+            prepareCoordinates();
+            start();
+
+        });
 
         latitude = (EditText) findViewById(R.id.latitude);
         longitude = (EditText) findViewById(R.id.longitude);
@@ -102,7 +108,21 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
             wifiName.setText(getWifiName());
         });
     }
-
+private boolean prepareCoordinates(){
+    try {
+        fenceCentreLocation = new Location(lastLocation);
+        fenceCentreLocation.setLatitude(Double.parseDouble(latitude.getText().toString()));
+        fenceCentreLocation.setLongitude(Double.parseDouble(longitude.getText().toString()));
+        radiusDistance = Integer.parseInt(radius.getText().toString());
+return true;
+    } catch (NumberFormatException nfe){
+        new OneButtonDialog(this, OneButtonDialog.DIALOG_TYPE.MESSAGE_ONLY)
+                .setTitle("Oops")
+                .setMessage("Please, check your fence settings")
+                .build();
+        return false;
+    }
+}
     private String getWifiName() {
 
         WifiManager wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -126,7 +146,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         } else if (loadingState == LOADING_STATE.INTERNET_CHECK) {
                 if (isNetworkAvailable()) {
                     loadingState = LOADING_STATE.INSIDE_FENCE_CHECK;
-                    checkLocationInsideFence();
+                    result.setText(checkLocationInsideFence()? "INSIDE" : "OUTSIDE");
+
                 } else {
                     showInternetDialog(() -> finish());
                 }
@@ -218,7 +239,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                             // in onActivityResult().
                             if (!isResolutionStarted) {
                                 isResolutionStarted = true;
-                                status.startResolutionForResult(MainActivity.this, REQUEST_CHECK_SETTINGS);
+                                status.startResolutionForResult(MainActivity.this, GPS_REQUEST);
                             }
 
                         } catch (IntentSender.SendIntentException e) {
@@ -269,8 +290,11 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         googleApiClient.connect();
     }
 
-    private void checkLocationInsideFence() {
-
+    private boolean checkLocationInsideFence() {
+        float[] results = new float[1];
+        Location.distanceBetween(lastLocation.getLatitude(), lastLocation.getLongitude(), fenceCentreLocation.getLatitude(), fenceCentreLocation.getLongitude(), results);
+        float distanceInMeters = results[0];
+        return distanceInMeters < radiusDistance;
     }
 
     @Override
@@ -307,6 +331,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
     @Override
     public void onLocationChanged(Location location) {
+        lastLocation = location;
+        result.setText(checkLocationInsideFence()? "INSIDE" : "OUTSIDE");
 
     }
 
