@@ -9,7 +9,6 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -36,7 +35,8 @@ import com.google.android.gms.location.LocationSettingsStatusCodes;
 
 public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, com.google.android.gms.location.LocationListener {
     private static final int REQUEST_CHECK_SETTINGS = 123;
-    private static final int GPS_REQUEST = 111;
+    private static final int GPS_REQUEST = 123;
+    private boolean isResolutionStarted = false;
     private EditText latitude;
     private EditText longitude;
     private EditText radius;
@@ -47,7 +47,12 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     private LOADING_STATE loadingState = LOADING_STATE.PERMISSION_CHECK;
     private GoogleApiClient googleApiClient;
     private Location lastLocation = null;
-
+    private ACTION onLocationRecievedAction = ACTION.FENCE;
+    enum ACTION {
+        LATITUE,
+        LONGITUDE,
+        FENCE;
+    }
     enum LOADING_STATE {
         PERMISSION_CHECK,
         GPS_CHECK,
@@ -60,7 +65,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         start = (Button) findViewById(R.id.start);
-        start.setOnClickListener((v)->start());
+        start.setOnClickListener((v) -> start());
 
         latitude = (EditText) findViewById(R.id.latitude);
         longitude = (EditText) findViewById(R.id.longitude);
@@ -69,28 +74,65 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         result = (TextView) findViewById(R.id.result);
 
         Button currentLatitude = (Button) findViewById(R.id.currentLatitude);
-        Button currentLongitude = (Button) findViewById(R.id.currentLongitude);
-        Button currentWifiName = (Button) findViewById(R.id.currentWifiName);
-        currentWifiName.setOnClickListener((v)->{
+        currentLatitude.setOnClickListener((v) -> {
+            Location lastLocation = this.lastLocation;
+            if (lastLocation == null) {
+                onLocationRecievedAction = ACTION.LATITUE;
+                start();
+            } else {
+                latitude.setText("" + lastLocation.getLatitude());
+                onLocationRecievedAction = ACTION.FENCE;
+            }
+        });
 
+        Button currentLongitude = (Button) findViewById(R.id.currentLongitude);
+        currentLongitude.setOnClickListener((v) -> {
+            Location lastLocation = this.lastLocation;
+            if (lastLocation == null) {
+                onLocationRecievedAction = ACTION.LONGITUDE;
+                start();
+            } else {
+                longitude.setText("" + lastLocation.getLongitude());
+                onLocationRecievedAction = ACTION.FENCE;
+            }
+        });
+
+        Button currentWifiName = (Button) findViewById(R.id.currentWifiName);
+        currentWifiName.setOnClickListener((v) -> {
+            wifiName.setText(getWifiName());
         });
     }
 
+    private String getWifiName() {
+
+        WifiManager wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        if (wifiMgr != null) {
+            String name = wifiMgr.getConnectionInfo().getSSID().replace("\"", "");
+            if (!name.equals("<unknown ssid>")) {
+                return name;
+            }
+        }
+
+        return "";
+    }
 
 
     public void start() {
 
         if (loadingState == LOADING_STATE.PERMISSION_CHECK) {
             checkGPSPermissons();
+        } else if (loadingState == LOADING_STATE.GPS_CHECK) {
+            onConnected(null);
         } else if (loadingState == LOADING_STATE.INTERNET_CHECK) {
-            if (isNetworkAvailable()) {
-                loadingState = LOADING_STATE.INSIDE_FENCE_CHECK;
-                checkLocationInsideFence();
-            } else {
-                showInternetDialog(() -> finish());
+                if (isNetworkAvailable()) {
+                    loadingState = LOADING_STATE.INSIDE_FENCE_CHECK;
+                    checkLocationInsideFence();
+                } else {
+                    showInternetDialog(() -> finish());
+                }
             }
         }
-    }
+
 
     @Override
     public void onConnected(Bundle connectionHint) {
@@ -99,11 +141,19 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
             Location lastLocation = LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
 
             if (lastLocation != null) {
-               /*
-               lastLocation.setLatitude(34.052235);
-                lastLocation.setLongitude(-118.243683);//*/
+
                 Log.d("lastLocation ", "" + lastLocation);
                 this.lastLocation = lastLocation;
+                if(lastLocation != null) {
+                    if (onLocationRecievedAction == ACTION.LATITUE) {
+                        latitude.setText("" + lastLocation.getLatitude());
+                        onLocationRecievedAction = ACTION.FENCE;
+                    } else if (onLocationRecievedAction == ACTION.LONGITUDE) {
+                        longitude.setText("" + lastLocation.getLongitude());
+                        onLocationRecievedAction = ACTION.FENCE;
+                    }
+
+                }
                 loadingState = LOADING_STATE.INTERNET_CHECK;
 
                 Log.d("Latitude ", "" + lastLocation.getLatitude());
@@ -136,12 +186,15 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
         Location location = null;
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
         } else if (googleApiClient.isConnected()) {
             LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locationRequest, this);
             location = LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
         }
 
-        this.lastLocation = location;
+        if (this.lastLocation == null) {
+            this.lastLocation = location;
+        }
         PendingResult<LocationSettingsResult> result = LocationServices.SettingsApi.checkLocationSettings(googleApiClient, builder.build());
 
         result.setResultCallback(new ResultCallback<LocationSettingsResult>() {
@@ -155,6 +208,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 switch (status.getStatusCode()) {
                     case LocationSettingsStatusCodes.SUCCESS:
                         Log.v("MainActivity", "All location settings are satisfied.");
+
                         onConnected(null);
                         break;
                     case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
@@ -162,10 +216,13 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                         try {
                             // Show the dialog by calling startResolutionForResult(), and check the result
                             // in onActivityResult().
-                            status.startResolutionForResult(MainActivity.this, REQUEST_CHECK_SETTINGS);
+                            if (!isResolutionStarted) {
+                                isResolutionStarted = true;
+                                status.startResolutionForResult(MainActivity.this, REQUEST_CHECK_SETTINGS);
+                            }
 
                         } catch (IntentSender.SendIntentException e) {
-                            //isResolutionStarted = false;
+                            isResolutionStarted = false;
                             //loadingState = LOADING_STATE.STATE_SELECTION;
                             //start();
                             //Log.v("PendingIntent unable to execute request.");
@@ -221,11 +278,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         switch (requestCode) {
             case 1: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
                     loadingState = LOADING_STATE.GPS_CHECK;
                     checkGPSSettings();
-
-                    onConnected(null);
                 } else {
                     new OneButtonDialog(this, OneButtonDialog.DIALOG_TYPE.MESSAGE_ONLY)
                             .setTitle("Oops")
@@ -268,31 +322,14 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage(R.string.no_internet_message)
                 .setCancelable(false)
-                .setPositiveButton("Connect", (DialogInterface dialog, int id) ->{
-                        dialog.dismiss();
-                        startActivity(new Intent(Settings.ACTION_SETTINGS));
+                .setPositiveButton("Connect", (DialogInterface dialog, int id) -> {
+                    dialog.dismiss();
+                    startActivity(new Intent(Settings.ACTION_SETTINGS));
                 })
                 .setNegativeButton("Cancel", (DialogInterface dialog, int id) -> onCancel.run());
         AlertDialog alert = builder.create();
         alert.show();
     }
-
-    /*private void showGpsDialog() {
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("GPS is not currently enabled. Click ok to proceed to Location Settings.")
-                .setTitle("Toggle GPS");
-        builder.setPositiveButton("OK", (DialogInterface dialog, int id) -> {
-            Intent settingsIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-            MainActivity.this.startActivityForResult(settingsIntent, GPS_REQUEST);
-
-        });
-        builder.setNegativeButton("Cancel", (DialogInterface dialog, int id) -> {
-            finish();
-        });
-
-        builder.show();
-    }*/
 
     @Override
     public void onStop() {
