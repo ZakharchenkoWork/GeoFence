@@ -1,51 +1,103 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-   android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:layout_marginLeft="16dp"
     android:layout_marginRight="16dp"
     android:layout_marginTop="@dimen/standard_margin"
-    >
+    android:orientation="vertical">
+
     <TextView
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:text="@string/center_point_coordinates"/>
-    <EditText
-        android:id="@+id/latitude"
-        android:hint="@string/latitude"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
-    <EditText
-        android:id="@+id/longitude"
-        android:hint="@string/longitude"
+        android:layout_height="wrap_content"
+        android:text="@string/center_point_coordinates" />
+
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="4">
+
+        <EditText
+            android:id="@+id/latitude"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="3"
+            android:hint="@string/latitude" />
+
+        <Button
+            android:id="@+id/currentLatitude"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/current" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="4">
+
+        <EditText
+            android:id="@+id/longitude"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="3"
+            android:hint="@string/longitude" />
+
+        <Button
+            android:id="@+id/currentLongitude"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/current" />
+
+    </LinearLayout>
+
     <EditText
         android:id="@+id/radius"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:hint="@string/radius"
-        android:inputType="numberDecimal"
+        android:inputType="numberDecimal" />
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
-    <EditText
-        android:id="@+id/wifiName"
-        android:hint="@string/wifi_name"
-        android:inputType="numberDecimal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="4">
+
+        <EditText
+            android:id="@+id/wifiName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="3"
+            android:inputType="numberDecimal"
+            android:hint="@string/wifi_name" />
+
+        <Button
+            android:id="@+id/currentWifiName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/current" />
+
+    </LinearLayout>
+
     <Button
         android:id="@+id/start"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:text="@string/start"/>
+        android:text="@string/start" />
 
     <TextView
         android:id="@+id/result"
-        android:layout_marginTop="@dimen/standard_margin"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone"
-        android:gravity="center"/>
+        android:layout_marginTop="@dimen/standard_margin"
+        android:gravity="center"
+        android:visibility="gone" />
 
 </LinearLayout>

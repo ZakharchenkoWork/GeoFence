@@ -9,6 +9,8 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
@@ -18,6 +20,8 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -32,7 +36,17 @@ import com.google.android.gms.location.LocationSettingsStatusCodes;
 
 public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, com.google.android.gms.location.LocationListener {
     private static final int REQUEST_CHECK_SETTINGS = 123;
-    public static final int GPS_REQUEST = 111;
+    private static final int GPS_REQUEST = 111;
+    private EditText latitude;
+    private EditText longitude;
+    private EditText radius;
+    private EditText wifiName;
+    private Button start;
+    private TextView result;
+
+    private LOADING_STATE loadingState = LOADING_STATE.PERMISSION_CHECK;
+    private GoogleApiClient googleApiClient;
+    private Location lastLocation = null;
 
     enum LOADING_STATE {
         PERMISSION_CHECK,
@@ -41,17 +55,28 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         INSIDE_FENCE_CHECK
     }
 
-    LOADING_STATE loadingState = LOADING_STATE.PERMISSION_CHECK;
-    private GoogleApiClient googleApiClient;
-    private Location lastLocation;
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Button start = (Button) findViewById(R.id.start);
+        start = (Button) findViewById(R.id.start);
         start.setOnClickListener((v)->start());
+
+        latitude = (EditText) findViewById(R.id.latitude);
+        longitude = (EditText) findViewById(R.id.longitude);
+        radius = (EditText) findViewById(R.id.radius);
+        wifiName = (EditText) findViewById(R.id.wifiName);
+        result = (TextView) findViewById(R.id.result);
+
+        Button currentLatitude = (Button) findViewById(R.id.currentLatitude);
+        Button currentLongitude = (Button) findViewById(R.id.currentLongitude);
+        Button currentWifiName = (Button) findViewById(R.id.currentWifiName);
+        currentWifiName.setOnClickListener((v)->{
+
+        });
     }
+
+
 
     public void start() {
 
@@ -134,11 +159,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                         break;
                     case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
                         Log.v("MainActivity", "Location settings are not satisfied. Show the user a dialog to upgrade location settings ");
-
                         try {
                             // Show the dialog by calling startResolutionForResult(), and check the result
                             // in onActivityResult().
-
                             status.startResolutionForResult(MainActivity.this, REQUEST_CHECK_SETTINGS);
 
                         } catch (IntentSender.SendIntentException e) {
@@ -205,7 +228,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                     onConnected(null);
                 } else {
                     new OneButtonDialog(this, OneButtonDialog.DIALOG_TYPE.MESSAGE_ONLY)
-                            .setTitle("Oops").setMessage("Sorry, if you won't give permission, you can not use this app")
+                            .setTitle("Oops")
+                            .setMessage("Sorry, if you won't give permission, you can not use this app")
                             .build();
                 }
             }
@@ -244,19 +268,16 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage(R.string.no_internet_message)
                 .setCancelable(false)
-                .setPositiveButton("Connect", new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
+                .setPositiveButton("Connect", (DialogInterface dialog, int id) ->{
                         dialog.dismiss();
                         startActivity(new Intent(Settings.ACTION_SETTINGS));
-
-                    }
                 })
                 .setNegativeButton("Cancel", (DialogInterface dialog, int id) -> onCancel.run());
         AlertDialog alert = builder.create();
         alert.show();
     }
 
-    private void showGpsDialog() {
+    /*private void showGpsDialog() {
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage("GPS is not currently enabled. Click ok to proceed to Location Settings.")
@@ -271,9 +292,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         });
 
         builder.show();
-
-
-    }
+    }*/
 
     @Override
     public void onStop() {
