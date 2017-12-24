@@ -172,7 +172,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
 
     private void tryToCheckData() {
-        if (fenceController.dataIsReady()) {
+        if (fenceController.isDataReady()) {
             result.setText(isLocationInsideFence() ? getString(R.string.inside) : getString(R.string.outside));
         }
     }

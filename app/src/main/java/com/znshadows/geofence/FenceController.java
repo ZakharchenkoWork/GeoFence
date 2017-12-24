@@ -26,7 +26,9 @@ public class FenceController {
     }
 
     public void setLastLocation(Location lastLocation) {
-        this.lastLocation = lastLocation;
+        if(lastLocation != null) {
+            this.lastLocation = lastLocation;
+        }
     }
 
     public int getRadiusDistance() {
@@ -46,12 +48,12 @@ public class FenceController {
     }
 
 
-    public boolean dataIsReady() {
+    public boolean isDataReady() {
         return lastLocation != null && fenceCenterLocation != null && wifiFenceName != null && !wifiFenceName.equals("") && radiusDistance != 0;
     }
 
     public boolean checkWifiName(String wifiName) {
-        if (!wifiFenceName.equals("") && wifiFenceName.equals(wifiName)) {
+        if (wifiFenceName != null &&!wifiFenceName.equals("") && wifiFenceName.equals(wifiName)) {
             return true;
         } else {
             return false;
