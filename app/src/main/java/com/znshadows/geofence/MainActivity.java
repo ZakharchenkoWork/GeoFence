@@ -18,6 +18,8 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -77,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
         Button currentLatitude = (Button) findViewById(R.id.currentLatitude);
         currentLatitude.setOnClickListener((v) -> {
-
+            hideKeyboard(v);
             if (fenceController.getLastLocation() == null) {
                 onLocationReceivedAction = ACTION.LATITUDE;
                 start();
@@ -89,7 +91,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
         Button currentLongitude = (Button) findViewById(R.id.currentLongitude);
         currentLongitude.setOnClickListener((v) -> {
-
+            hideKeyboard(v);
             if (fenceController.getLastLocation() == null) {
                 onLocationReceivedAction = ACTION.LONGITUDE;
                 start();
@@ -101,6 +103,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
         Button currentWifiName = (Button) findViewById(R.id.currentWifiName);
         currentWifiName.setOnClickListener((v) -> {
+            hideKeyboard(v);
             wifiName.setText(getWifiName());
         });
     }
@@ -395,5 +398,11 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         GPS_CHECK,
         INTERNET_CHECK,
         INSIDE_FENCE_CHECK
+    }
+    public void hideKeyboard(View v) {
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if(imm != null) {
+            imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+        }
     }
 }
