@@ -36,7 +36,9 @@ import com.google.android.gms.location.LocationSettingsStatusCodes;
 public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, com.google.android.gms.location.LocationListener {
 
     private static final int GPS_REQUEST = 123;
-    private boolean isResolutionStarted = false;
+    public static final String NO_WIFI = "<unknown ssid>";
+
+    private GoogleApiClient googleApiClient;
     private EditText latitude;
     private EditText longitude;
     private EditText radius;
@@ -44,27 +46,17 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     private Button start;
     private TextView result;
 
+
+
     private LOADING_STATE loadingState = LOADING_STATE.PERMISSION_CHECK;
-    private GoogleApiClient googleApiClient;
-    private Location lastLocation = null;
-    private Location fenceCentreLocation = null;
-    private int radiusDistance;
-    private String wifiFenceName = "";
+    private ACTION onLocationReceivedAction = ACTION.FENCE;
 
-    private ACTION onLocationRecievedAction = ACTION.FENCE;
+    private boolean isResolutionStarted = false;//prevents from duplication of resolution dialog
 
-    enum ACTION {
-        LATITUE,
-        LONGITUDE,
-        FENCE;
-    }
+    private FenceController fenceController = new FenceController();
 
-    enum LOADING_STATE {
-        PERMISSION_CHECK,
-        GPS_CHECK,
-        INTERNET_CHECK,
-        INSIDE_FENCE_CHECK
-    }
+
+
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -85,25 +77,25 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
         Button currentLatitude = (Button) findViewById(R.id.currentLatitude);
         currentLatitude.setOnClickListener((v) -> {
-            Location lastLocation = this.lastLocation;
-            if (lastLocation == null) {
-                onLocationRecievedAction = ACTION.LATITUE;
+
+            if (fenceController.getLastLocation() == null) {
+                onLocationReceivedAction = ACTION.LATITUDE;
                 start();
             } else {
-                latitude.setText("" + lastLocation.getLatitude());
-                onLocationRecievedAction = ACTION.FENCE;
+                latitude.setText("" + fenceController.getLastLocation().getLatitude());
+                onLocationReceivedAction = ACTION.FENCE;
             }
         });
 
         Button currentLongitude = (Button) findViewById(R.id.currentLongitude);
         currentLongitude.setOnClickListener((v) -> {
-            Location lastLocation = this.lastLocation;
-            if (lastLocation == null) {
-                onLocationRecievedAction = ACTION.LONGITUDE;
+
+            if (fenceController.getLastLocation() == null) {
+                onLocationReceivedAction = ACTION.LONGITUDE;
                 start();
             } else {
-                longitude.setText("" + lastLocation.getLongitude());
-                onLocationRecievedAction = ACTION.FENCE;
+                longitude.setText("" + fenceController.getLastLocation().getLongitude());
+                onLocationReceivedAction = ACTION.FENCE;
             }
         });
 
@@ -112,29 +104,36 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
             wifiName.setText(getWifiName());
         });
     }
+    protected synchronized void buildGoogleApiClient() {
+        if (googleApiClient == null) {
+            googleApiClient = new GoogleApiClient.Builder(this)
+                    .addConnectionCallbacks(this)
+                    .addOnConnectionFailedListener(this)
+                    .addApi(LocationServices.API)
+                    .build();
+        }
+        googleApiClient.connect();
+    }
+
 
     private boolean prepareCoordinates() {
         try {
             //Didn't want to mess with old values
-            fenceCentreLocation = new Location("");
             double latitude = Double.parseDouble(this.latitude.getText().toString());
             double longitude = Double.parseDouble(this.longitude.getText().toString());
             int radiusValue = Integer.parseInt(radius.getText().toString());
             String wifiNameValue = wifiName.getText().toString();
-            if(wifiNameValue.equals("") || radiusValue == 0){
+            if (wifiNameValue.equals("") || radiusValue == 0) {
                 throw new NumberFormatException();
             }
 
-            fenceCentreLocation.setLatitude(latitude);
-            fenceCentreLocation.setLongitude(longitude);
-            radiusDistance = radiusValue;
-            wifiFenceName = wifiNameValue;
+            fenceController.setCenterLatitude(latitude);
+            fenceController.setCenterLongitude(longitude);
+            fenceController.setRadiusDistance(radiusValue);
+            fenceController.setWifiFenceName(wifiNameValue);
             return true;
         } catch (NumberFormatException nfe) {
-            new OneButtonDialog(this, OneButtonDialog.DIALOG_TYPE.MESSAGE_ONLY)
-                    .setTitle("Oops")
-                    .setMessage("Please, check your fence settings")
-                    .build();
+            showErrorDialog(getString(R.string.fence_error_message));
             return false;
         }
     }
@@ -144,7 +143,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         WifiManager wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         if (wifiMgr != null) {
             String name = wifiMgr.getConnectionInfo().getSSID().replace("\"", "");
-            if (!name.equals("<unknown ssid>")) {
+            if (!name.equals(NO_WIFI)) {
                 return name;
             }
         }
@@ -156,14 +155,13 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     public void start() {
 
         if (loadingState == LOADING_STATE.PERMISSION_CHECK) {
-            checkGPSPermissons();
+            checkGPSPermissions();
         } else if (loadingState == LOADING_STATE.GPS_CHECK) {
             onConnected(null);
         } else if (loadingState == LOADING_STATE.INTERNET_CHECK) {
             if (isNetworkAvailable()) {
                 loadingState = LOADING_STATE.INSIDE_FENCE_CHECK;
                 tryToCheckData();
-
             } else {
                 showInternetDialog(() -> finish());
             }
@@ -174,8 +172,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
 
     private void tryToCheckData() {
-        if (lastLocation != null && fenceCentreLocation != null) {
-            result.setText(checkLocationInsideFence() ? "INSIDE" : "OUTSIDE");
+        if (fenceController.dataIsReady()) {
+            result.setText(isLocationInsideFence() ? getString(R.string.inside) : getString(R.string.outside));
         }
     }
 
@@ -189,14 +187,14 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
             if (lastLocation != null) {
 
                 Log.d("lastLocation ", "" + lastLocation);
-                this.lastLocation = lastLocation;
+                fenceController.setLastLocation(lastLocation);
                 if (lastLocation != null) {
-                    if (onLocationRecievedAction == ACTION.LATITUE) {
+                    if (onLocationReceivedAction == ACTION.LATITUDE) {
                         latitude.setText("" + lastLocation.getLatitude());
-                        onLocationRecievedAction = ACTION.FENCE;
-                    } else if (onLocationRecievedAction == ACTION.LONGITUDE) {
+                        onLocationReceivedAction = ACTION.FENCE;
+                    } else if (onLocationReceivedAction == ACTION.LONGITUDE) {
                         longitude.setText("" + lastLocation.getLongitude());
-                        onLocationRecievedAction = ACTION.FENCE;
+                        onLocationReceivedAction = ACTION.FENCE;
                     }
 
                 }
@@ -207,7 +205,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 start();
             } else {
                 Log.d("lastLocation ", "" + lastLocation);
-                checkGPSSettings();
+                checkGPSEnabled();
             }
 
 
@@ -217,7 +215,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
     }
 
-    private void checkGPSSettings() {
+    private void checkGPSEnabled() {
         if (loadingState != LOADING_STATE.GPS_CHECK) {
             return;
         }
@@ -238,8 +236,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
             location = LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
         }
 
-        if (this.lastLocation == null) {
-            this.lastLocation = location;
+        if (location != null) {
+            fenceController.setLastLocation(location);
         }
         PendingResult<LocationSettingsResult> result = LocationServices.SettingsApi.checkLocationSettings(googleApiClient, builder.build());
 
@@ -276,17 +274,12 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                         break;
                     case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
                         Log.v("", "Location settings are inadequate, and cannot be fixed here. Dialog not created.");
+                        showErrorDialog(getString(R.string.connection_error_message));
                         break;
                 }
             }
         });
     }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-
-    }
-
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -295,82 +288,71 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 onConnected(null);
 
             } else if (resultCode == 0) {
-                new OneButtonDialog(this, OneButtonDialog.DIALOG_TYPE.MESSAGE_ONLY)
-                        .setTitle("Oops")
-                        .setMessage("Sorry, if you won't give permission then app wil not work")
-                        .build();
+                showErrorDialog(getString(R.string.permission_error_message));
+
 
             }
         }
     }
-
-    protected synchronized void buildGoogleApiClient() {
-        if (googleApiClient == null) {
-            googleApiClient = new GoogleApiClient.Builder(this)
-                    .addConnectionCallbacks(this)
-                    .addOnConnectionFailedListener(this)
-                    .addApi(LocationServices.API)
-                    .build();
-        }
-        googleApiClient.connect();
-    }
-
-
-    private boolean checkLocationInsideFence() {
-        if(wifiFenceName.equals(getWifiName())){
-            return true;
-        }
-
-        float[] results = new float[1];
-        Location.distanceBetween(lastLocation.getLatitude(), lastLocation.getLongitude(), fenceCentreLocation.getLatitude(), fenceCentreLocation.getLongitude(), results);
-        float distanceInMeters = results[0];
-        return  distanceInMeters < radiusDistance;
-    }
-
     @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
-        switch (requestCode) {
-            case 1: {
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    loadingState = LOADING_STATE.GPS_CHECK;
-                    checkGPSSettings();
-                } else {
-                    new OneButtonDialog(this, OneButtonDialog.DIALOG_TYPE.MESSAGE_ONLY)
-                            .setTitle("Oops")
-                            .setMessage("Sorry, if you won't give permission, you can not use this app")
-                            .build();
-                }
-            }
-        }
-    }
-
-    private void checkGPSPermissons() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
-        } else {
-            loadingState = LOADING_STATE.GPS_CHECK;
-            checkGPSSettings();
-        }
+    public void onLocationChanged(Location location) {
+        fenceController.setLastLocation(location);
+        tryToCheckData();
 
     }
 
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
+        showErrorDialog(getString(R.string.connection_error_message));
     }
 
     @Override
-    public void onLocationChanged(Location location) {
-        lastLocation = location;
-        tryToCheckData();
-
+    public void onConnectionSuspended(int i) {
+        showErrorDialog(getString(R.string.connection_error_message));
     }
+
+
+
+
+    private boolean isLocationInsideFence() {
+
+        if (fenceController.checkWifiName(getWifiName())) {
+            return true;
+        }
+        return fenceController.getDistanceToFence() < fenceController.getRadiusDistance();
+    }
+
+
+
+    private void checkGPSPermissions() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, GPS_REQUEST);
+        } else {
+            loadingState = LOADING_STATE.GPS_CHECK;
+            checkGPSEnabled();
+        }
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case GPS_REQUEST: {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    loadingState = LOADING_STATE.GPS_CHECK;
+                    checkGPSEnabled();
+                } else {
+                    showErrorDialog(getString(R.string.permission_error_message));
+
+                }
+            }
+        }
+    }
+
 
     private boolean isNetworkAvailable() {
         ConnectivityManager connectivityManager
                 = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-        return activeNetworkInfo != null && activeNetworkInfo.isConnected();//TODO: check for wifi network name
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
 
     }
 
@@ -378,13 +360,20 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage(R.string.no_internet_message)
                 .setCancelable(false)
-                .setPositiveButton("Connect", (DialogInterface dialog, int id) -> {
+                .setPositiveButton(getString(R.string.connect), (DialogInterface dialog, int id) -> {
                     dialog.dismiss();
                     startActivity(new Intent(Settings.ACTION_SETTINGS));
                 })
-                .setNegativeButton("Cancel", (DialogInterface dialog, int id) -> onCancel.run());
+                .setNegativeButton(getString(R.string.cancel), (DialogInterface dialog, int id) -> onCancel.run());
         AlertDialog alert = builder.create();
         alert.show();
+    }
+
+    private void showErrorDialog(String message) {
+        new OneButtonDialog(this, OneButtonDialog.DIALOG_TYPE.MESSAGE_ONLY)
+                .setTitle(getString(R.string.error_dialog_title))
+                .setMessage(message)
+                .build();
     }
 
     @Override
@@ -395,4 +384,16 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         super.onStop();
     }
 
+    enum ACTION {
+        LATITUDE,
+        LONGITUDE,
+        FENCE
+    }
+
+    enum LOADING_STATE {
+        PERMISSION_CHECK,
+        GPS_CHECK,
+        INTERNET_CHECK,
+        INSIDE_FENCE_CHECK
+    }
 }
