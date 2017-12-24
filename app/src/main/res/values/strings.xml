@@ -6,7 +6,7 @@
     <string name="radius">Radius (in meters)</string>
     <string name="start">start</string>
     <string name="wifi_name">WiFi name</string>
-    <string name="no_internet_message">Sorry wifi is not available</string>
+    <string name="no_internet_message">Sorry, wifi is not available</string>
     <string name="current">current</string>
     <string name="inside">INSIDE</string>
     <string name="outside">OUTSIDE</string>
@@ -14,6 +14,6 @@
     <string name="cancel">Cancel</string>
     <string name="connect">Connect</string>
     <string name="connection_error_message">Sorry, something went wrong with the connection</string>
-    <string name="permission_error_message">Sorry, if you won\'t give permission, you can not use this app</string>
+    <string name="permission_error_message">Sorry, if you won\'t give permission, you won\'t be able use this app</string>
     <string name="fence_error_message">Please, check your fence settings</string>
 </resources>

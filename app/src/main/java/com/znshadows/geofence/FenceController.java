@@ -16,9 +16,6 @@ public class FenceController {
         return lastLocation;
     }
 
-    public Location getFenceCenterLocation() {
-        return fenceCenterLocation;
-    }
 
     public void setCenterLatitude(double latitude) {
         fenceCenterLocation.setLatitude(latitude);
@@ -48,9 +45,6 @@ public class FenceController {
         }
     }
 
-    public String getWifiFenceName() {
-        return wifiFenceName;
-    }
 
     public boolean dataIsReady() {
         return lastLocation != null && fenceCenterLocation != null && wifiFenceName != null && !wifiFenceName.equals("") && radiusDistance != 0;
