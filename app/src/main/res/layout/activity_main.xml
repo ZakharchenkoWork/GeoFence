@@ -12,51 +12,51 @@
         android:layout_height="wrap_content"
         android:text="@string/center_point_coordinates" />
 
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:weightSum="4">
+        android:layout_height="wrap_content">
 
         <EditText
             android:id="@+id/latitude"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="3"
+            android:layout_toLeftOf="@id/currentLatitude"
+            android:layout_alignParentLeft="true"
             android:inputType="numberDecimal"
             android:hint="@string/latitude" />
 
         <Button
             android:id="@+id/currentLatitude"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_alignParentRight="true"
+            android:textAllCaps="false"
             android:text="@string/current" />
 
-    </LinearLayout>
+    </RelativeLayout>
 
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:weightSum="4">
+        android:layout_height="wrap_content">
 
         <EditText
             android:id="@+id/longitude"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="3"
+            android:layout_alignParentLeft="true"
+            android:layout_toLeftOf="@id/currentLongitude"
             android:inputType="numberDecimal"
             android:hint="@string/longitude" />
 
         <Button
             android:id="@+id/currentLongitude"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_alignParentRight="true"
+            android:textAllCaps="false"
             android:text="@string/current" />
 
-    </LinearLayout>
+    </RelativeLayout>
 
     <EditText
         android:id="@+id/radius"
@@ -64,28 +64,28 @@
         android:layout_height="wrap_content"
         android:hint="@string/radius"
         android:inputType="number" />
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:weightSum="4">
+        android:layout_height="wrap_content">
 
         <EditText
             android:id="@+id/wifiName"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="3"
+            android:layout_toLeftOf="@id/currentWifiName"
+            android:layout_alignParentLeft="true"
             android:inputType="numberDecimal"
             android:hint="@string/wifi_name" />
 
         <Button
             android:id="@+id/currentWifiName"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_alignParentRight="true"
+            android:textAllCaps="false"
             android:text="@string/current" />
 
-    </LinearLayout>
+    </RelativeLayout>
 
     <Button
         android:id="@+id/start"
@@ -100,7 +100,6 @@
         android:layout_height="match_parent"
         android:layout_marginTop="@dimen/standard_margin"
         android:gravity="center"
-        
          />
 
 </LinearLayout>

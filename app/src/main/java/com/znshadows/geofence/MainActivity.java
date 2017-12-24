@@ -49,12 +49,16 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     private Location lastLocation = null;
     private Location fenceCentreLocation = null;
     private int radiusDistance;
+    private String wifiFenceName = "";
+
     private ACTION onLocationRecievedAction = ACTION.FENCE;
+
     enum ACTION {
         LATITUE,
         LONGITUDE,
         FENCE;
     }
+
     enum LOADING_STATE {
         PERMISSION_CHECK,
         GPS_CHECK,
@@ -108,21 +112,33 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
             wifiName.setText(getWifiName());
         });
     }
-private boolean prepareCoordinates(){
-    try {
-        fenceCentreLocation = new Location(lastLocation);
-        fenceCentreLocation.setLatitude(Double.parseDouble(latitude.getText().toString()));
-        fenceCentreLocation.setLongitude(Double.parseDouble(longitude.getText().toString()));
-        radiusDistance = Integer.parseInt(radius.getText().toString());
-return true;
-    } catch (NumberFormatException nfe){
-        new OneButtonDialog(this, OneButtonDialog.DIALOG_TYPE.MESSAGE_ONLY)
-                .setTitle("Oops")
-                .setMessage("Please, check your fence settings")
-                .build();
-        return false;
+
+    private boolean prepareCoordinates() {
+        try {
+            //Didn't want to mess with old values
+            fenceCentreLocation = new Location("");
+            double latitude = Double.parseDouble(this.latitude.getText().toString());
+            double longitude = Double.parseDouble(this.longitude.getText().toString());
+            int radiusValue = Integer.parseInt(radius.getText().toString());
+            String wifiNameValue = wifiName.getText().toString();
+            if(wifiNameValue.equals("") || radiusValue == 0){
+                throw new NumberFormatException();
+            }
+
+            fenceCentreLocation.setLatitude(latitude);
+            fenceCentreLocation.setLongitude(longitude);
+            radiusDistance = radiusValue;
+            wifiFenceName = wifiNameValue;
+            return true;
+        } catch (NumberFormatException nfe) {
+            new OneButtonDialog(this, OneButtonDialog.DIALOG_TYPE.MESSAGE_ONLY)
+                    .setTitle("Oops")
+                    .setMessage("Please, check your fence settings")
+                    .build();
+            return false;
+        }
     }
-}
+
     private String getWifiName() {
 
         WifiManager wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -144,15 +160,24 @@ return true;
         } else if (loadingState == LOADING_STATE.GPS_CHECK) {
             onConnected(null);
         } else if (loadingState == LOADING_STATE.INTERNET_CHECK) {
-                if (isNetworkAvailable()) {
-                    loadingState = LOADING_STATE.INSIDE_FENCE_CHECK;
-                    result.setText(checkLocationInsideFence()? "INSIDE" : "OUTSIDE");
+            if (isNetworkAvailable()) {
+                loadingState = LOADING_STATE.INSIDE_FENCE_CHECK;
+                tryToCheckData();
 
-                } else {
-                    showInternetDialog(() -> finish());
-                }
+            } else {
+                showInternetDialog(() -> finish());
             }
+        } else if (loadingState == LOADING_STATE.INSIDE_FENCE_CHECK) {
+            tryToCheckData();
         }
+    }
+
+
+    private void tryToCheckData() {
+        if (lastLocation != null && fenceCentreLocation != null) {
+            result.setText(checkLocationInsideFence() ? "INSIDE" : "OUTSIDE");
+        }
+    }
 
 
     @Override
@@ -165,7 +190,7 @@ return true;
 
                 Log.d("lastLocation ", "" + lastLocation);
                 this.lastLocation = lastLocation;
-                if(lastLocation != null) {
+                if (lastLocation != null) {
                     if (onLocationRecievedAction == ACTION.LATITUE) {
                         latitude.setText("" + lastLocation.getLatitude());
                         onLocationRecievedAction = ACTION.FENCE;
@@ -290,11 +315,16 @@ return true;
         googleApiClient.connect();
     }
 
+
     private boolean checkLocationInsideFence() {
+        if(wifiFenceName.equals(getWifiName())){
+            return true;
+        }
+
         float[] results = new float[1];
         Location.distanceBetween(lastLocation.getLatitude(), lastLocation.getLongitude(), fenceCentreLocation.getLatitude(), fenceCentreLocation.getLongitude(), results);
         float distanceInMeters = results[0];
-        return distanceInMeters < radiusDistance;
+        return  distanceInMeters < radiusDistance;
     }
 
     @Override
@@ -332,7 +362,7 @@ return true;
     @Override
     public void onLocationChanged(Location location) {
         lastLocation = location;
-        result.setText(checkLocationInsideFence()? "INSIDE" : "OUTSIDE");
+        tryToCheckData();
 
     }
 
